@@ -1,0 +1,47 @@
+# Vérifie que les services gratuits utilisés par l'appli répondent correctement
+# (lancement manuel depuis l'onglet Actions, ou à chaque modification de ce fichier).
+name: Vérifier les services en ligne
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/check-services.yml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Itinéraire vélo Valhalla (avec altitudes)
+        run: |
+          curl -s -m 40 -X POST https://valhalla1.openstreetmap.de/route \
+            -H 'Content-Type: application/json' -H 'User-Agent: EBikeNavigatorPro/2.0 (verification)' \
+            -d '{"locations":[{"lat":45.4995,"lon":-73.6205},{"lat":45.4870,"lon":-73.5870}],"costing":"bicycle","costing_options":{"bicycle":{"bicycle_type":"Hybrid","cycling_speed":23,"use_roads":0.3,"use_hills":0.6,"avoid_bad_surfaces":0.5}},"directions_options":{"units":"kilometers","language":"fr-FR"},"elevation_interval":30}' \
+            -o val.json -w "HTTP %{http_code}\n"
+          python3 - <<'EOF'
+          import json
+          d = json.load(open("val.json"))
+          if "trip" not in d:
+              print("ERREUR", d); raise SystemExit(1)
+          leg = d["trip"]["legs"][0]
+          e = leg.get("elevation")
+          up = sum(max(0, b - a) for a, b in zip(e, e[1:]) if b - a > 0.5) if e else None
+          print("Distance km :", d["trip"]["summary"]["length"])
+          print("Altitudes reçues :", len(e) if e else "AUCUNE", "| Montées :", round(up) if up is not None else "-", "m")
+          for m in leg["maneuvers"][:4]:
+              print(" -", m.get("verbal_pre_transition_instruction"))
+          EOF
+
+      - name: Feux et obstacles Overpass
+        run: |
+          Q='[out:json][timeout:25];(node(around:20,45.4995,-73.6205,45.4950,-73.6100,45.4900,-73.5980,45.4870,-73.5870)["highway"~"^(traffic_signals|stop|give_way)$"];node(around:10,45.4995,-73.6205,45.4950,-73.6100,45.4900,-73.5980,45.4870,-73.5870)["barrier"~"^(bollard|cycle_barrier|gate|lift_gate|block|chain|swing_gate)$"];);out body;'
+          curl -s -m 40 -X POST https://overpass-api.de/api/interpreter \
+            -H 'User-Agent: EBikeNavigatorPro/2.0 (verification)' \
+            --data-urlencode "data=$Q" -o ovp.json -w "HTTP %{http_code}\n"
+          python3 -c "import json,collections;d=json.load(open('ovp.json'));c=collections.Counter((e.get('tags',{}).get('highway') or e.get('tags',{}).get('barrier')) for e in d['elements']);print('Éléments trouvés :', dict(c))"
+
+      - name: Recherche d'adresse Photon
+        run: |
+          curl -s -m 30 "https://photon.komoot.io/api/?q=Westmount%20High%20School&limit=2&lang=fr&lat=45.5&lon=-73.6" \
+            -H 'User-Agent: EBikeNavigatorPro/2.0 (verification)' -o ph.json -w "HTTP %{http_code}\n"
+          python3 -c "import json;d=json.load(open('ph.json'));print([f['properties'].get('name') for f in d['features']])"
