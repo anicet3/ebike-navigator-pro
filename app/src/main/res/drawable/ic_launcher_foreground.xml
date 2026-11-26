@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flèche de navigation + éclair (vélo électrique), dessin original -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L76,80 L54,68 L32,80 Z" />
+    <path
+        android:fillColor="#FACC15"
+        android:pathData="M57,40 L48,57 L55,57 L51,70 L62,51 L55,51 Z" />
+</vector>

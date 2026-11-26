@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">E-Bike Navigator Pro</string>
+    <string name="search_hint">Où allez-vous ?</string>
+    <string name="search">Chercher</string>
+    <string name="satellite">🛰 Satellite</string>
+    <string name="plan">🗺 Plan</string>
+    <string name="recenter">◎ Recentrer</string>
+    <string name="start">▶ Démarrer</string>
+    <string name="cancel">Annuler</string>
+    <string name="simulate">🧪 Tester</string>
+    <string name="stop">■ Arrêter</string>
+    <string name="mode_fast">Rapide</string>
+    <string name="mode_balanced">Équilibré</string>
+    <string name="mode_safe">Sécurisé</string>
+    <string name="kmh">km/h</string>
+    <string name="profile">Profil du vélo</string>
+    <string name="report">⚠ Signaler</string>
+    <string name="voice_on">🔊 Voix</string>
+    <string name="voice_off">🔇 Muet</string>
+</resources>
