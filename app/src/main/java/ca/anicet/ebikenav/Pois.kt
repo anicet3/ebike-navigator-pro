@@ -113,7 +113,16 @@ object PoiTools {
  * (serveur public Overpass, gratuit) le long du trajet.
  */
 object OverpassClient {
-    var url = "https://overpass-api.de/api/interpreter"
+    /**
+     * Serveurs essayés dans l'ordre : si le premier est surchargé (fréquent),
+     * on passe au suivant. Vérifié le 26/11/2026 : le principal renvoyait une erreur 502,
+     * le serveur de secours maps.mail.ru répondait en ~14 s.
+     */
+    val servers = listOf(
+        "https://overpass-api.de/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    )
 
     suspend fun fetchAlong(route: Route): List<RawPoi> = withContext(Dispatchers.IO) {
         val coords = PoiTools.sample(route.points)
@@ -124,7 +133,21 @@ object OverpassClient {
             "node(around:12,$coords)[\"traffic_calming\"];" +
             "node(around:10,$coords)[\"barrier\"~\"^(bollard|cycle_barrier|gate|lift_gate|block|chain|swing_gate)$\"];" +
             ");out body;"
-        val json = JSONObject(httpRequest(url, "data=" + URLEncoder.encode(query, "UTF-8"), formPost = true))
+        val body = "data=" + URLEncoder.encode(query, "UTF-8")
+        var json: JSONObject? = null
+        var lastError: Exception? = null
+        for (server in servers) {
+            try {
+                val candidate = JSONObject(httpRequest(server, body, formPost = true))
+                if (candidate.has("elements")) {
+                    json = candidate
+                    break
+                }
+            } catch (e: Exception) {
+                lastError = e // serveur suivant
+            }
+        }
+        if (json == null) throw lastError ?: java.io.IOException("Aucun serveur Overpass disponible")
         val elements = json.optJSONArray("elements") ?: return@withContext emptyList<RawPoi>()
         val out = ArrayList<RawPoi>()
         for (i in 0 until elements.length()) {
