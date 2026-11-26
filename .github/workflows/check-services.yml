@@ -32,15 +32,19 @@ jobs:
               print(" -", m.get("verbal_pre_transition_instruction"))
           EOF
 
-      - name: Feux et obstacles Overpass
+      - name: Feux et obstacles Overpass (serveur principal + secours)
+        continue-on-error: true
         run: |
           Q='[out:json][timeout:25];(node(around:20,45.4995,-73.6205,45.4950,-73.6100,45.4900,-73.5980,45.4870,-73.5870)["highway"~"^(traffic_signals|stop|give_way)$"];node(around:10,45.4995,-73.6205,45.4950,-73.6100,45.4900,-73.5980,45.4870,-73.5870)["barrier"~"^(bollard|cycle_barrier|gate|lift_gate|block|chain|swing_gate)$"];);out body;'
-          curl -s -m 40 -X POST https://overpass-api.de/api/interpreter \
-            -H 'User-Agent: EBikeNavigatorPro/2.0 (verification)' \
-            --data-urlencode "data=$Q" -o ovp.json -w "HTTP %{http_code}\n"
-          python3 -c "import json,collections;d=json.load(open('ovp.json'));c=collections.Counter((e.get('tags',{}).get('highway') or e.get('tags',{}).get('barrier')) for e in d['elements']);print('Éléments trouvés :', dict(c))"
+          for U in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            echo "== $U"
+            curl -s -m 35 -X POST "$U" -H 'User-Agent: EBikeNavigatorPro/2.0 (verification)' \
+              --data-urlencode "data=$Q" -o ovp.json -w "HTTP %{http_code} en %{time_total}s\n" || echo "pas de réponse"
+            python3 -c "import json,collections;d=json.load(open('ovp.json'));c=collections.Counter((e.get('tags',{}).get('highway') or e.get('tags',{}).get('barrier')) for e in d['elements']);print('Éléments trouvés :', dict(c))" 2>/dev/null || echo "réponse illisible"
+          done
 
       - name: Recherche d'adresse Photon
+        continue-on-error: true
         run: |
           curl -s -m 30 "https://photon.komoot.io/api/?q=Westmount%20High%20School&limit=2&lang=fr&lat=45.5&lon=-73.6" \
             -H 'User-Agent: EBikeNavigatorPro/2.0 (verification)' -o ph.json -w "HTTP %{http_code}\n"
